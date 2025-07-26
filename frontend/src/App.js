@@ -29,7 +29,7 @@ const handleAnalyse = async () => {
     const formData = new FormData();
     formData.append("query", inputText);
 
-    const response = await fetch('http://localhost:8000/api/', {
+    const response = await fetch('https://tds-p2-xn6o.onrender.com/api/', {
       method: 'POST',
       body: formData
     });

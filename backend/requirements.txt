@@ -1,14 +1,36 @@
- wikipedia
+# FastAPI app
 fastapi
 uvicorn
-fastapi
-uvicorn
+python-multipart
 pydantic
 python-dotenv
+requests
+
+# LangChain core
 langchain
 langchain-openai
 langchain-anthropic
 langchain-community
-google-generativeai
-langchain-google-genai
+
+# LangChain tools/utilities
+duckduckgo-search
+wikipedia
+
+# Used by LangChain's WikipediaAPIWrapper
+beautifulsoup4
+
+
+#  wikipedia
+# fastapi
+# uvicorn
+# fastapi
+# uvicorn
+# pydantic
+# python-dotenv
+# langchain
+# langchain-openai
+# langchain-anthropic
+# langchain-community
+# google-generativeai
+# langchain-google-genai
 
