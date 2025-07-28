@@ -1,4 +1,4 @@
-/* p2.css */
+/* p2.css
 body {
   background-color: #fef6f4;
   font-family: 'Comic Sans MS', cursive, sans-serif;
@@ -52,45 +52,171 @@ button {
 button:hover {
   background-color: #f4e6ff;
 }
+ */
 
-
-/* .App {
-  text-align: center;
+/* html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #F2F2F2;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.main-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; 
+  padding: 2rem;
+  box-sizing: border-box;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
+.content-box {
+  display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   }
+
+.heading {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: #01050a;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+
+
+.input-section, .output-section {
+  flex: 1 1 400px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+}
+
+.input-textarea,
+.output-textarea {
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  resize: none;
+  font-size: 1rem;
+  line-height: 1.4;
+  background-color: #EAE4D5;
+  transition: all 0.2s ease-in-out;
+}
+
+.input-textarea:focus,
+.output-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
+}
+
+.analyze-button {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: #000000;
   color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.analyze-button:hover {
+  background-color: #0056b3;
 } */
 
 
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #F2F2F2;
+  margin: 0;
+  padding: 0;
+}
+
+.main-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.content-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  background: #B6B09F;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 1200px;
+  min-height: 80vh; 
+  box-sizing: border-box;
+  }
+  
+
+.top-heading {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: left;
+  color: #333;
+}
+
+
+.input-section,
+.output-section {
+  flex: 1 1 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-textarea,
+.output-textarea {
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  resize: none;
+  font-size: 1rem;
+  line-height: 1.5;
+  background-color: #EAE4D5;
+  transition: all 0.2s ease-in-out;
+  overflow: hidden;
+}
+
+.input-textarea:focus,
+.output-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
+}
+
+.input-label,
+.output-label {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.analyze-button {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: #000000;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.analyze-button:hover {
+  background-color: #0056b3;
+}
