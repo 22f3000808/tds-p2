@@ -192,6 +192,7 @@ const P2 = () => {
       formData.append("query", inputText);
 
       const response = await fetch('https://tds-p2-xn6o.onrender.com/api/', {
+      // const response = await fetch('http://0.0.0.0:8000/api/', {
         method: 'POST',
         body: formData
       });
