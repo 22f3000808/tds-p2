@@ -4,3 +4,9 @@ main.py
 __pycache__
 .env
 *.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp

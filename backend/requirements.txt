@@ -5,6 +5,7 @@ python-multipart
 pydantic
 python-dotenv
 requests
+pillow
 
 # LangChain core
 langchain
