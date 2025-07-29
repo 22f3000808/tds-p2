@@ -26,33 +26,59 @@ const P2 = () => {
     }
   }, [outputText]);
 
+  // const handleAnalyse = async () => {
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("query", inputText);
+
+  //     const response = await fetch('https://tds-p2-xn6o.onrender.com/api/', {
+  //     // const response = await fetch('http://0.0.0.0:8000/api/', {
+  //       method: 'POST',
+  //       body: formData
+  //     });
+
+  //     const data = await response.json();
+
+  //     // if (data.topic || data.summary || data.sources) {
+  //     if (data) {
+  //       setOutputText(JSON.stringify(data, null, 2));
+  //     } else if (data.error) {
+  //       setOutputText("Error: " + data.error + "\n" + JSON.stringify(data.raw, null, 2));
+  //     } else {
+  //       setOutputText('Unexpected response from backend');
+  //     }
+
+  //   } catch (err) {
+  //     console.error(err);
+  //     setOutputText('Error connecting to backend');
+  //   }
+  // };
+
   const handleAnalyse = async () => {
-    try {
-      const formData = new FormData();
-      formData.append("query", inputText);
+  try {
+    const formData = new FormData();
+    formData.append("query", inputText);
 
-      const response = await fetch('https://tds-p2-xn6o.onrender.com/api/', {
-      // const response = await fetch('http://0.0.0.0:8000/api/', {
-        method: 'POST',
-        body: formData
-      });
+    const response = await fetch('https://tds-p2-xn6o.onrender.com/api/', {
+      method: 'POST',
+      body: formData
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      // if (data.topic || data.summary || data.sources) {
-      if (data) {
-        setOutputText(JSON.stringify(data, null, 2));
-      } else if (data.error) {
-        setOutputText("Error: " + data.error + "\n" + JSON.stringify(data.raw, null, 2));
-      } else {
-        setOutputText('Unexpected response from backend');
-      }
-
-    } catch (err) {
-      console.error(err);
-      setOutputText('Error connecting to backend');
+    if (data.error) {
+      setOutputText("Error: " + data.error + "\n" + JSON.stringify(data.raw, null, 2));
+    } else {
+      const isString = typeof data === 'string';
+      setOutputText(isString ? data : JSON.stringify(data, null, 2));
     }
-  };
+
+  } catch (err) {
+    console.error(err);
+    setOutputText('Error connecting to backend');
+  }
+};
+
 
   return (
     <div className="main-container">
