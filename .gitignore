@@ -3,4 +3,4 @@ p2
 main.py
 __pycache__
 .env
-question.txt
+*.txt
