@@ -1,27 +1,22 @@
+
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from dotenv import load_dotenv
-from typing import Optional, Any, List
+from typing import List, Optional
 import uvicorn
-import os
-import requests
-import json
 import base64
-import mimetypes
+import json
+from PIL import Image
+import pytesseract
+import io
+import base64
 
-# Load environment variables
-load_dotenv()
+from tools import (
+    is_csv, is_image, analyze_csv_bytes, analyze_image_bytes, call_aipipe_api,
+    maybe_base64_to_image_response
+)
 
-AIPIPE_API_KEY = os.getenv("AIPIPE_API_KEY")
-if not AIPIPE_API_KEY:
-    raise EnvironmentError("AIPIPE_API_KEY not set in .env")
+app = FastAPI(title="Data Analyst Agent")
 
-AIPIPE_API_URL = "https://aipipe.org/openrouter/v1/chat/completions"
-
-app = FastAPI()
-
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,209 +24,102 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Flexible output schema
-class ResearchResponse(BaseModel):
-    answers: Any  # Can be list, string, dict, etc.
-
-# Helper: detect if file is image
-def is_image(content_type: str, filename: str) -> bool:
-    if content_type and content_type.startswith("image/"):
-        return True
-    guessed, _ = mimetypes.guess_type(filename)
-    return guessed and guessed.startswith("image/")
-
-# AIPipe call
-def call_aipipe_api(prompt: str) -> str:
-    headers = {
-        "Authorization": f"Bearer {AIPIPE_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You are a Data Analyst that helps solve data analysis problems. "
-                    "Respond in this strict JSON format:\n"
-                    "{ \"answers\": [\"...\"] } or { \"answers\": \"...\" }"
-                ),
-            },
-            {"role": "user", "content": prompt}
-        ]
-    }
-    response = requests.post(AIPIPE_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
-
-# Endpoint that handles multiple/single files & text
 @app.post("/api/")
 async def analyse_files_and_text(
     files: List[UploadFile] = File([]),
     file: Optional[UploadFile] = File(None),
     query: Optional[str] = Form(None)
 ):
-    prompts = []
-
-    # Combine both single & multiple files into one list
-    all_files = []
+    all_files: List[UploadFile] = []
     if file:
         all_files.append(file)
     if files:
         all_files.extend(files)
 
-    print(f"DEBUG: Received {len(all_files)} files")
-    print(f"DEBUG: Query: {query}")
-
-    # Process uploaded files
+    txt_files, csv_files, img_files, other_files = [], [], [], []
     for f in all_files:
-        contents = await f.read()
-        if is_image(f.content_type, f.filename):
-            encoded = base64.b64encode(contents).decode("utf-8")
-            prompts.append(f"Image file '{f.filename}' (base64): {encoded}")
+        if is_csv(f.content_type, f.filename):
+            csv_files.append(f)
+        elif is_image(f.content_type, f.filename):
+            img_files.append(f)
+        elif f.filename.lower().endswith(".txt"):
+            txt_files.append(f)
         else:
+            other_files.append(f)
+
+    file_summaries = []
+    effective_query = query or None
+
+    # --- Handle text files ---
+    texts = []
+    for f in txt_files:
+        raw = await f.read()
+        try:
+            txt = raw.decode("utf-8").strip()
+            texts.append(txt)
+            file_summaries.append({
+                "filename": f.filename,
+                "type": "text",
+                "content_preview": txt[:2000]
+            })
+            if not effective_query:
+                effective_query = txt
+        except Exception as e:
+            file_summaries.append({"filename": f.filename, "type": "text", "error": str(e)})
+
+    # --- Handle CSV files ---
+    if csv_files:
+        for f in csv_files:
+            contents = await f.read()
             try:
-                decoded_text = contents.decode("utf-8")
-                prompts.append(f"Text/Other file '{f.filename}':\n{decoded_text}")
-            except UnicodeDecodeError:
-                encoded = base64.b64encode(contents).decode("utf-8")
-                prompts.append(f"Binary file '{f.filename}' in base64: {encoded}")
+                csv_result = analyze_csv_bytes(contents)
+                return csv_result  # directly return CSV analysis
+            except Exception as e:
+                file_summaries.append({"filename": f.filename, "type": "csv", "error": str(e)})
 
-    # Include plain text query if provided
-    if query:
-        prompts.append(f"User query:\n{query}")
+    # --- Handle Images ---
+    images_b64 = []
+    ocr_texts = []
+    for f in img_files:
+        raw = await f.read()
+        try:
+            img = Image.open(io.BytesIO(raw))
+            ocr_text = pytesseract.image_to_string(img).strip()
+            b64 = base64.b64encode(raw).decode("utf-8")
 
-    if not prompts:
-        return {"error": "No files or query provided."}
+            images_b64.append(b64)
+            if ocr_text:
+                ocr_texts.append(ocr_text)
 
-    # Merge into one combined prompt
-    final_prompt = "\n\n".join(prompts)
+            file_summaries.append({
+                "filename": f.filename,
+                "type": "image",
+                "ocr_text_preview": ocr_text[:200],
+                "base64_len": len(b64)
+            })
+        except Exception as e:
+            file_summaries.append({"filename": f.filename, "type": "image", "error": str(e)})
 
+    # --- Build final query ---
+    if not effective_query:
+        effective_query = "\n\n".join(texts + ocr_texts) or "Please analyze these files."
+
+    # --- Call AIPipe ---
+    ai_reply = call_aipipe_api(prompt=effective_query, image_b64_list=images_b64)
+
+    # Try parsing
     try:
-        ai_response = call_aipipe_api(final_prompt)
-        json_data = json.loads(ai_response)
-
-        # Ensure answers is always a list
-        if isinstance(json_data.get("answers"), str):
-            json_data["answers"] = [json_data["answers"]]
-
-        parsed = ResearchResponse.model_validate(json_data)
-        return parsed
-
+        img_resp = maybe_base64_to_image_response(ai_reply)
+        if img_resp:
+            return img_resp
+        try:
+            return json.loads(ai_reply)
+        except Exception:
+            return {"answers": ai_reply}
     except Exception as e:
-        return {
-            "error": "Failed to process response from AIPipe.",
-            "raw_response": ai_response if 'ai_response' in locals() else None,
-            "exception": str(e)
-        }
+        return {"error": "Failed to process AIPipe response", "exception": str(e), "file_summaries": file_summaries}
 
-# Run locally
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
 
-
-
-# Original code for reference
-# Uncomment the following lines to use the original code
-
-
-# from fastapi import FastAPI, UploadFile, File, Form
-# from fastapi.middleware.cors import CORSMiddleware
-# from pydantic import BaseModel
-# from dotenv import load_dotenv
-# from typing import Optional, Any
-# import uvicorn
-# import os
-# import requests
-# import json
-# import base64
-
-# # Load environment variables
-# load_dotenv()
-
-# AIPIPE_API_KEY = os.getenv("AIPIPE_API_KEY")
-# if not AIPIPE_API_KEY:
-#     raise EnvironmentError("AIPIPE_API_KEY not set in .env")
-
-# AIPIPE_API_URL = "https://aipipe.org/openrouter/v1/chat/completions"
-
-# app = FastAPI()
-
-# # CORS middleware
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-# # Flexible output schema
-# class ResearchResponse(BaseModel):
-#     answers: Any  # Can be list, string, dict, etc.
-
-# # AIPipe call
-# def call_aipipe_api(prompt: str) -> str:
-#     headers = {
-#         "Authorization": f"Bearer {AIPIPE_API_KEY}",
-#         "Content-Type": "application/json",
-#     }
-
-#     payload = {
-#         "model": "gpt-3.5-turbo",
-#         "messages": [
-#             {
-#                 "role": "system",
-#                 "content": (
-#                     "You are a Data Analyst that helps solve data analysis problems. "
-#                     "Respond in this strict JSON format:\n"
-#                     "{ \"answers\": [\"...\"] } or { \"answers\": \"...\" }"
-#                 ),
-#             },
-#             {"role": "user", "content": prompt}
-#         ]
-#     }
-
-#     response = requests.post(AIPIPE_API_URL, headers=headers, json=payload)
-#     response.raise_for_status()
-#     return response.json()["choices"][0]["message"]["content"]
-
-# # Endpoint
-# @app.post("/api/")
-# async def analyse_txt_file(
-#     file: Optional[UploadFile] = File(None),
-#     query: Optional[str] = Form(None)
-# ):
-#     if file:
-#         contents = await file.read()
-
-#         # Detect image and convert to base64
-#         if file.content_type and file.content_type.startswith("image/"):
-#             encoded = base64.b64encode(contents).decode("utf-8")
-#             query = f"Please analyze this image in base64 format:\n{encoded}"
-#         else:
-#             query = contents.decode("utf-8")
-
-#     elif not query:
-#         return {"error": "No input provided. Please upload a file or submit a text query."}
-
-#     try:
-#         ai_response = call_aipipe_api(query)
-#         json_data = json.loads(ai_response)
-
-#         # If "answers" is string, convert to list for uniform handling
-#         if isinstance(json_data.get("answers"), str):
-#             json_data["answers"] = [json_data["answers"]]
-
-#         parsed = ResearchResponse.model_validate(json_data)
-#         return parsed
-
-#     except Exception as e:
-#         return {
-#             "error": "Failed to process response from AIPipe.",
-#             "raw_response": ai_response if 'ai_response' in locals() else None,
-#             "exception": str(e)
-#         }
-
-# # Run locally
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
